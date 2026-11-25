@@ -1,63 +1,102 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import React, { useEffect, useState } from 'react';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+
+import { useRouter } from 'expo-router';
+import { User } from 'firebase/auth';
+
+import {
+  checkAuthState,
+  logoutUser,
+} from '../../services/Authservices';
+
+export default function Home() {
+  const router = useRouter();
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = checkAuthState((currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+
+      if (!currentUser) {
+        router.replace('/register' as any);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      router.replace('/login' as any);
+    } catch (error: any) {
+      Alert.alert('Logout Failed', error.message);
+    }
+  };
+
+  if (loading || !user) {
     return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#16865B" />
+        <Text>Loading...</Text>
+      </View>
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.container}>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <Text style={styles.logo}>CleanGo</Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      <Text style={styles.title}>
+        Welcome, {user.displayName || 'User'}!
+      </Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+      <View style={styles.card}>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <Text style={styles.heading}>My Account</Text>
+
+        <Text style={styles.label}>Full Name</Text>
+        <Text style={styles.value}>
+          {user.displayName || 'Not available'}
+        </Text>
+
+        <Text style={styles.label}>Email Address</Text>
+        <Text style={styles.value}>
+          {user.email}
+        </Text>
+
+        <Text style={styles.label}>User ID</Text>
+        <Text style={styles.value}>
+          {user.uid}
+        </Text>
+
+      </View>
+
+      <Text style={styles.message}>
+        Together, let's keep our rivers and environment clean!
+      </Text>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleLogout}
+      >
+        <Text style={styles.buttonText}>Logout</Text>
+      </TouchableOpacity>
+
+    </View>
   );
 }
 
@@ -65,34 +104,68 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    flexDirection: 'row',
+    padding: 25,
+    backgroundColor: '#F0F8F5',
   },
-  safeArea: {
+  loading: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    alignItems: 'center',
+    gap: 10,
+  },
+  logo: {
+    fontSize: 35,
+    fontWeight: 'bold',
+    color: '#16865B',
+    textAlign: 'center',
+    marginBottom: 25,
   },
   title: {
+    fontSize: 25,
+    fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 25,
+    color: '#222',
   },
-  code: {
-    textTransform: 'uppercase',
+  card: {
+    backgroundColor: '#fff',
+    padding: 22,
+    borderRadius: 15,
+    elevation: 3,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  heading: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#16865B',
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 12,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222',
+    marginTop: 5,
+  },
+  message: {
+    textAlign: 'center',
+    color: '#555',
+    marginTop: 25,
+    fontSize: 15,
+  },
+  button: {
+    backgroundColor: '#D93636',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 25,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 'bold',
   },
 });
